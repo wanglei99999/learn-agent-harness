@@ -1,3 +1,26 @@
+"""
+s01_agent_loop.py — 最小可运行 Agent
+
+本节只做一件事：实现 while True 的 agent loop。
+
+核心模式：
+    用户输入
+        │
+        ▼
+    client.messages.create()   ← 调 LLM
+        │
+        ├── stop_reason == "tool_use" → 执行工具 → 结果追加进 messages → 继续循环
+        │
+        └── stop_reason == "end_turn" → 退出循环，打印回复
+
+关键理解：
+  - LLM 不直接执行任何操作，它只"决定"调哪个工具、传什么参数
+  - harness（这段 Python 代码）负责真正执行工具并把结果喂回给 LLM
+  - messages 是对话历史，每轮追加 assistant 回复 + tool_result，LLM 靠它记忆上下文
+  - 工具只有一个：bash，模型通过 shell 命令完成所有任务
+
+s01 → s02 的演进：s01 只有 bash，文件操作靠 cat/echo 等 shell 命令，不安全也不精确。
+"""
 import os
 import subprocess
 

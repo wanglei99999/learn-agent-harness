@@ -1,3 +1,33 @@
+"""
+s07_task_system.py — 文件持久化任务系统
+
+s07 在 s06 基础上新增一个机制：
+  任务状态保存到 .tasks/*.json 文件，不依赖 messages[] 上下文。
+
+核心设计：任务存文件，不存消息
+
+  之前（s01-s06）：任务状态靠 LLM 记忆 / todo 列表维护，对话压缩后可能丢失
+  s07：每个任务是一个独立 JSON 文件，重启、压缩后依然存在
+
+任务文件结构（.tasks/task_1.json）：
+  {
+    "id": 1,
+    "subject": "实现登录功能",
+    "status": "pending",          ← pending / in_progress / completed
+    "blockedBy": [2, 3],          ← 依赖的任务 ID 列表（未完成则无法开始）
+    "created_at": 1234567890.0
+  }
+
+依赖关系（blockedBy）：
+  类比拓扑排序：blockedBy 是入度，_clear_dependency 是"移除已完成节点"。
+  任务完成后，扫描所有文件，从其他任务的 blockedBy 里删掉这个 ID。
+  当 blockedBy 变为空列表，任务变为可执行状态。
+
+LLM 通过 6 个工具操作任务：
+  task_create / task_list / task_get / task_update / task_add_blocked_by / task_remove_blocked_by
+
+s07 → s08 的演进：任务系统够用了，但任务只能串行，需要后台并发执行。
+"""
 import json
 import os
 import subprocess

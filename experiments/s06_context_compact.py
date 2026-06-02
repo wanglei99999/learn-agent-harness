@@ -1,3 +1,35 @@
+"""
+s06_context_compact.py — 三层上下文压缩
+
+s06 在 s05 基础上新增一个机制：
+  长对话 token 膨胀时，通过三层压缩策略维持上下文可用。
+
+三层压缩策略：
+
+  Layer 1 — micro_compact（每轮自动）：
+    把历史 tool_result 替换为短占位符 "[Previous: used bash]"
+    只保留最近 KEEP_RECENT 条完整结果
+    轻量、无 API 调用、原地修改
+
+  Layer 2 — auto_compact（token 超阈值时）：
+    调用 LLM 生成对话摘要
+    用一条摘要消息替换整个 messages[]
+    messages[:] = ... 原地替换，调用方持有的引用不失效
+
+  Layer 3 — manual_compact（LLM 主动调用 compact 工具）：
+    LLM 自己判断"上下文快满了"，主动触发压缩
+    执行完立即 return，下轮对话从摘要开始
+
+关键实现细节：
+  messages[:] = auto_compact(messages)
+  ↑ 切片赋值：原地替换列表内容，而非重新绑定变量
+    如果写 messages = auto_compact(messages)，函数外的引用不会更新
+
+  PRESERVE_RESULT_TOOLS = {"read_file"}
+  ↑ 文件内容可能后续还在用，不压缩
+
+s06 → s07 的演进：上下文能维持了，但任务管理仍靠 LLM 记忆，需要持久化任务系统。
+"""
 import json
 import os
 import subprocess

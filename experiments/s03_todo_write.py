@@ -1,3 +1,27 @@
+"""
+s03_todo_write.py — TodoManager + Nag Reminder
+
+s03 在 s02 基础上新增两个机制：
+  1. TodoManager：LLM 可写入的结构化进度状态，全量替换，一个 in_progress
+  2. Nag Reminder：连续 3 轮没更新 todo，harness 自动注入提醒，推动 LLM 更新进度
+
+设计思路：
+  LLM 天然有"做完就忘"的倾向，不会主动汇报进度。
+  todo 工具给 LLM 一个"状态板"，每完成一步就更新，harness 通过计数器监督它更新。
+
+Nag Reminder 机制（s03 核心）：
+    rounds_since_todo = 0
+    每轮：
+      用了 todo → 归零
+      没用 todo → +1
+      达到 3   → 在 tool_result 里追加 <reminder> 标签，下轮 LLM 看到会更新
+
+TodoManager 的全量替换设计：
+  LLM 每次传完整列表（不是增量），harness 直接覆盖，
+  避免"只改一条"导致的状态不一致问题。
+
+s03 → s04 的演进：单 agent 解决所有问题，复杂任务上下文膨胀，需要子 agent 分担。
+"""
 import os
 import subprocess
 from pathlib import Path
