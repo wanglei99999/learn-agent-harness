@@ -1,3 +1,34 @@
+"""
+s08_backgroud_tasks.py — 后台任务（Background Tasks）
+
+s08 在 s07 基础上新增一个机制：
+  用 daemon 线程在后台并发执行 shell 命令，LLM 无需等待命令完成。
+
+核心设计：非阻塞执行 + 通知队列
+
+  s07 的 bash 工具：LLM 调用 → 等待命令完成 → 拿结果继续（阻塞）
+  s08 的 bg_run  ：LLM 调用 → 立即拿到 task_id → 继续干其他事（非阻塞）
+                   后台线程跑命令 → 完成后推入通知队列
+                   下一轮 agent_loop 开始时注入通知 → LLM 看到结果
+
+BackgroundManager 三个关键方法：
+  run(command)          → 启动 daemon 线程，返回 task_id
+  check(task_id)        → 查询某个任务的状态和结果
+  drain_notifications() → 取走并清空通知队列，返回所有已完成任务
+
+通知注入机制：
+  每轮 agent_loop 开始时：
+    notifications = BG.drain_notifications()
+    if notifications:
+        messages.append(<background-results> 标签包裹的通知)
+  LLM 看到通知后知道哪些后台任务完成了，可以据此做决策
+
+线程安全：
+  self._lock = threading.Lock()  ← 保护 tasks 字典和通知队列的并发读写
+  daemon=True ← 主进程退出时后台线程自动结束
+
+s08 → s09 的演进：单 agent 带后台线程，但还没有真正的"团队"，需要多 agent 协作。
+"""
 import os
 import subprocess
 import threading

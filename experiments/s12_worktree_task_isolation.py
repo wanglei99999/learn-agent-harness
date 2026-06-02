@@ -250,6 +250,7 @@ class TaskManager:
         self._save(task)
         return json.dumps(task, indent=2)
 
+    #新增：绑定工作空间，本质是更新状态和worktree赋值
     def bind_worktree(self, task_id: int, worktree: str, owner: str = "") -> str:
         """
         将任务与 worktree 绑定：写入 worktree 名，状态自动从 pending 升为 in_progress。
@@ -264,7 +265,7 @@ class TaskManager:
         task["updated_at"] = time.time()
         self._save(task)
         return json.dumps(task, indent=2)
-
+    #新增：解绑工作空间
     def unbind_worktree(self, task_id: int) -> str:
         """解绑 worktree，worktree 删除后调用，把任务的 worktree 字段清空。"""
         task = self._load(task_id)

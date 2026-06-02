@@ -1,3 +1,31 @@
+"""
+s04_subagent.py — Subagent（子代理）
+
+s04 在 s03 基础上新增一个机制：
+  parent 可以通过 task 工具启动 subagent，把子任务委托出去。
+
+核心设计：上下文隔离
+
+  parent messages:  [用户问题, ..., task工具结果="摘要"]
+  subagent messages:[子任务描述, ..., 执行细节]  ← 全新列表，互不干扰
+
+  subagent 干完活后，只把最后的文本摘要返回给 parent。
+  中间所有的工具调用、执行细节、错误尝试都留在 subagent 的 messages 里，
+  不会污染 parent 的上下文，parent 只看到结果。
+
+工具权限分层：
+  CHILD_TOOLS  = [bash, read_file, write_file, edit_file]    ← subagent 只能干活
+  PARENT_TOOLS = CHILD_TOOLS + [task]                        ← parent 额外能派任务
+
+  subagent 没有 task 工具，不能再派子 subagent（防止无限递归）。
+
+run_subagent() 的关键设计：
+  - range(30) 而非 while True：给 subagent 设执行上限，防止失控
+  - 独立的 SUBAGENT_SYSTEM 提示词，引导它完成任务后输出摘要
+  - 返回值只取最后一轮的文本，摘要作为 task 工具的结果回传 parent
+
+s04 → s05 的演进：子任务能分担，但 LLM 缺乏专业知识，需要按需加载领域技能。
+"""
 import os
 import subprocess
 from pathlib import Path

@@ -1,3 +1,40 @@
+"""
+s05_skill_loading.py — Skill Loading（按需加载技能）
+
+s05 在 s04 基础上新增一个机制：
+  LLM 遇到不熟悉的主题时，调用 load_skill 工具按需加载领域知识（SKILL.md）。
+
+两层设计：
+
+  Layer 1 — 技能目录（system prompt 里）：
+    "Available skills: python-patterns, golang-testing, ..."
+    LLM 启动时就知道有哪些技能可用，但不知道内容
+
+  Layer 2 — 技能正文（tool_result 里）：
+    LLM 调用 load_skill("python-patterns")
+    → harness 读取 skills/python-patterns/SKILL.md 的正文
+    → 通过 tool_result 注入上下文
+    → LLM 获得专业知识后继续工作
+
+为什么不把所有技能放 system prompt？
+  技能文件可能很长，全部预加载会浪费大量 token。
+  按需加载：用到哪个加载哪个，其他的不占上下文。
+
+SKILL.md 格式：
+  ---
+  name: python-patterns
+  description: Python 常用设计模式
+  tags: python, patterns
+  ---
+  （正文内容）
+
+SkillLoader 工作流：
+  初始化时扫描 skills/**\/SKILL.md → 建立内存索引
+  get_descriptions() → 返回名称+描述列表（注入 system prompt）
+  get_content(name)  → 返回完整正文（通过 tool_result 注入）
+
+s05 → s06 的演进：长对话上下文越来越大，需要压缩机制防止 token 溢出。
+"""
 import os
 import re
 import subprocess

@@ -1,8 +1,30 @@
+"""
+s02_tool_use.py — 工具分发表 + 文件操作工具
+
+s02 在 s01 基础上新增两个机制：
+  1. TOOL_HANDLERS 字典：工具名 → lambda，agent_loop 通过名字查表分发，不再写 if/else
+  2. 专用文件操作工具：read_file / write_file / edit_file，统一经过 safe_path 校验
+
+核心改进：
+
+  s01 的方式：
+    if block.name == "bash": run_bash(...)   ← 每加一个工具就要改 agent_loop
+
+  s02 的方式：
+    TOOL_HANDLERS = {"bash": ..., "read_file": ..., ...}
+    handler = TOOL_HANDLERS.get(block.name)  ← agent_loop 不用改，只加字典条目
+
+安全边界：
+  safe_path() 把所有文件路径限制在 WORKDIR 内，防止 LLM 访问系统文件。
+  resolve() 展开 ../../ 这类路径后，is_relative_to() 判断是否越界。
+
+s02 → s03 的演进：工具够用了，但模型没有"进度"概念，不知道自己完成了哪些步骤。
+"""
 import os
 import subprocess
 from pathlib import Path
 
-#pathlib的出现，不在将路径作为字符串维护，而是作为对象维护。
+# pathlib 把路径当对象处理，比字符串拼接更安全，支持 / 运算符拼路径
 from anthropic import Anthropic
 from dotenv import load_dotenv
 

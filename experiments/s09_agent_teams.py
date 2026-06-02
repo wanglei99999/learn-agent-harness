@@ -1,3 +1,34 @@
+"""
+s09_agent_teams.py — Agent 团队（文件消息总线 + 持久线程）
+
+s09 在 s08 基础上新增两个机制：
+  1. MessageBus：基于 JSONL 文件的消息总线，每个成员有独立收件箱
+  2. TeammateManager：持久线程，teammate 一旦 spawn 就一直跑，通过收件箱收任务
+
+核心设计：文件作为消息中转
+
+  lead 发消息 → 写入 .team/inbox/<name>.jsonl
+  teammate 每轮读收件箱 → 拿到消息 → 执行 → 继续循环
+
+  为什么用文件而不是队列/管道？
+  → 持久化（重启后消息不丢）、天然异步、调试方便（直接看文件内容）
+
+角色分工：
+  lead（主线程）：
+    - 可 spawn 新 teammate、broadcast 消息、发送点对点消息
+    - 工具包含团队管理工具
+
+  teammate（子线程，_teammate_loop）：
+    - 可 send_message、read_inbox、执行文件操作
+    - 工具不含团队管理，防止 teammate 乱 spawn
+
+_exec 用 if/else 而非字典的原因：
+  sender（当前 teammate 的名字）是动态的，
+  send_message/read_inbox 都需要用 sender 路由，
+  字典 lambda 捕获不了调用时的动态 sender。
+
+s09 → s10 的演进：团队能协作了，但缺乏优雅关闭和计划审批等控制协议。
+"""
 import json
 import os
 import subprocess
